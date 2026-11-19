@@ -212,7 +212,7 @@ export default function ExplainerPlayer({ explainer: e, lang }: { explainer: Exp
             <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
               {(beatId === "slow" || beatId === "walk") && (
                 <span className={`font-mono text-[13px] font-semibold ${tone}`}>
-                  {cur.frame.cost} {e.costUnit}
+                  {e.costUnit}: {cur.frame.cost}
                 </span>
               )}
               {cur.frame.vars && (

@@ -145,10 +145,12 @@ export default function GridView({ state, t }: { state: GridState; prev: GridSta
       </svg>
       {se && (
         <div className="mx-auto flex w-full min-w-0 max-w-[460px] flex-col gap-2">
-          <FrontierPanel se={se} name={(n) => cellName(cols, n)} />
-          <p className="m-0 font-mono text-[11px] leading-relaxed text-fg-3">
-            Numbers: {se.algo === "bfs" ? "steps from S (distance)" : "the order DFS visited the cells"}. Dashed: {se.algo === "bfs" ? "waiting in the queue" : "on the call stack"}.
-          </p>
+          {state.queue !== false && <FrontierPanel se={se} name={(n) => cellName(cols, n)} />}
+          {state.legend !== null && (
+            <p className="m-0 font-mono text-[11px] leading-relaxed text-fg-3">
+              {state.legend ?? `Numbers: ${se.algo === "bfs" ? "steps from S (distance)" : "the order DFS visited the cells"}. Dashed: ${se.algo === "bfs" ? "waiting in the queue" : "on the call stack"}.`}
+            </p>
+          )}
         </div>
       )}
     </div>

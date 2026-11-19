@@ -14,7 +14,13 @@ import type { Script } from "./types";
 export type GridModel = { rows: number; cols: number; walls: boolean[]; start: number; goal: number | null };
 
 /** The grid view's state: the geometry and the search on it. */
-export type GridState = GridModel & { search: SearchState | null };
+export type GridState = GridModel & {
+  search: SearchState | null;
+  /** explainers: false hides the queue panel (a frame that shows distances, not a search in progress) */
+  queue?: boolean;
+  /** explainers: the legend under the grid in the problem's words ("Numbers: minutes until the server has the update"); null hides it */
+  legend?: string | null;
+};
 
 export const GRID_DIRS: [number, number, string][] = [
   [-1, 0, "up"],
