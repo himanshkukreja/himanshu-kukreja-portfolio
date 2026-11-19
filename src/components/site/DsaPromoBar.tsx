@@ -23,7 +23,7 @@ export default function DsaPromoBar({ pathname }: { pathname: string }) {
       <div className="mx-auto flex max-w-[1320px] items-center gap-2.5 px-4 py-1 font-mono text-[12px] text-fg-2 sm:px-6">
         <span className="shrink-0 rounded-full border border-signal px-2 py-px text-[10px] font-semibold uppercase tracking-label text-signal-text">New</span>
         <p className="m-0 min-w-0 flex-1 truncate">
-          DSA Mastery is live: hundreds of lessons and problems, free with sign-in.{" "}
+          DSA Mastery is live<span className="max-sm:hidden">: hundreds of lessons and problems, free with sign-in</span>.{" "}
           <Link href="/dsa" className="whitespace-nowrap text-signal-text underline decoration-line-strong underline-offset-4 hover:decoration-signal">
             Explore →
           </Link>
