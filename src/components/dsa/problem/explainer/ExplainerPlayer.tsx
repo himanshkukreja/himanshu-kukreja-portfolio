@@ -26,7 +26,7 @@ const SPEEDS = [0.75, 1, 1.25, 1.5, 2];
 const BTN = "inline-flex min-h-9 items-center justify-center gap-1.5 rounded-[9px] border border-line px-2.5 text-[13px] font-medium text-fg-2 hover:bg-surface-2 hover:text-fg disabled:opacity-40 [@media(pointer:coarse)]:min-h-11";
 const fmt = (v: unknown): string => (v === null || v === undefined ? "–" : Array.isArray(v) ? `[${v.map((x: unknown) => fmt(x)).join(", ")}]` : typeof v === "object" ? JSON.stringify(v) : String(v));
 /** The recorded narration, when it was voiced from these captions (sha1 of the lines, 12 hex, as voice.mjs writes it). */
-async function loadAudio(e: Explainer): Promise<ExplainerAudio | null> {
+export async function loadAudio(e: Explainer): Promise<ExplainerAudio | null> {
   try {
     const base = `${listenMediaBase()}/dsa-explainers/${e.problem}`;
     const r = await fetch(`${base}/listen.json`);
