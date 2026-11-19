@@ -101,6 +101,25 @@
       "capped": [],
       "failed": [],
       "drops": []
+    },
+    {
+      "at": "2026-11-19T02:47:10.423Z",
+      "sha": "f3c74647b6bffd4a394f9ea697b6f4791494952d",
+      "cap": 1.5,
+      "spend": 0.40439599,
+      "rates": {
+        "citations": 1,
+        "chat": 0.6,
+        "dsa": 0.5454545454545454,
+        "lld-mock": 1,
+        "brief": 0.9130434782608695
+      },
+      "capped": [],
+      "failed": [],
+      "drops": [
+        "chat",
+        "dsa"
+      ]
     }
   ]
 }
