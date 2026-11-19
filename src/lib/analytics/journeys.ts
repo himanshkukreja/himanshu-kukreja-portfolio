@@ -1,3 +1,4 @@
+import type { SessionCourse } from "./courseFilter";
 /**
  * Shapes of /api/admin/posthog/* (the /admin/journeys screens). Shared by the server routes, the
  * client screens and the dev preview fixtures. No runtime imports.
@@ -113,6 +114,9 @@ export type Recording = {
   pageviews: number;
   rage: number;
   dead: number;
+  /** SDM / DSA / crossover (see courseFilter.ts) and whether it ran on a staging host */
+  course: SessionCourse;
+  staging: boolean;
 };
 
 export type PersonInfo = {
@@ -206,6 +210,8 @@ export type LiveSession = {
   /** last event < 5 min ago */
   active: boolean;
   recording: LiveRec | null;
+  course: SessionCourse;
+  staging: boolean;
   /** the replay lookup for this row hasn't answered yet (the split feed loads replays after the list) */
   replayPending?: boolean;
   /** a replay exists but has under MIN_ACTIVE_SECONDS of activity, so it isn't linked */

@@ -2,6 +2,7 @@ import "server-only";
 import { sharedCache } from "@/lib/admin/sharedCache";
 import type { LiveEvent, LiveFeedRes, LiveFilter, LiveHeadRes, LiveRec, LiveReplaysRes, LiveSession, LiveSessionsRes, LiveWindow } from "./journeys";
 import { describe, EVENT_PROPS, propsFrom } from "./journeysModel";
+import { DSA_PATH_SQL, STAGING_HOST_SQL, classifySummary, type Course } from "./courseFilter";
 import { MIN_ACTIVE_SECONDS } from "./recordingFilter";
 import { whoOf } from "./journeysServer";
 import { hogql, iso, isUuid, NOISE, INTERNAL, num, softError, str, type Row } from "./posthogServer";
@@ -106,15 +107,22 @@ const SESSION_COLS = `properties.$session_id AS sid,
     argMax(properties.$os, timestamp) AS os,
     argMin(properties.$referring_domain, timestamp) AS ref,
     countIf(startsWith(coalesce(properties.$pathname, ''), '/learn') OR endsWith(coalesce(properties.$host, ''), 'systemdesignmastery.dev')) AS learn,
-    ${TIMELINE_COL}`;
+    ${TIMELINE_COL},
+    countIf(event = '$pageview' AND ${DSA_PATH_SQL}) AS dsapv,
+    countIf(${STAGING_HOST_SQL}) AS stg`;
 
-async function computeSessions(window: LiveWindow, filter: LiveFilter, before: string | null): Promise<LiveSessionsRes> {
+/** HAVING clause for the Course filter (entry = the session's first pageview path) */
+const courseHaving = (c: Course) =>
+  c === "dsa" ? "dsapv > 0" : c === "sdm" ? "dsapv = 0" : c === "sdm-dsa" ? `dsapv > 0 AND NOT match(coalesce(entry, ''), '^/dsa(/|[?#]|$)')` : null;
+
+async function computeSessions(window: LiveWindow, filter: LiveFilter, before: string | null, course: Course = "all", staging = false): Promise<LiveSessionsRes> {
   const w = LIVE_WINDOWS[window].sql;
   const having = [
     `max(timestamp) > now() - ${w}`,
     before ? "max(timestamp) < toDateTime({before})" : null,
     filter === "signed" ? "email IS NOT NULL AND email != ''" : null,
     filter === "learn" ? "learn > 0" : null,
+    courseHaving(course),
   ].filter(Boolean);
   // "has replay": sessions PostHog holds a replay for (same table the replays part reads)
   const recorded =
@@ -128,12 +136,13 @@ async function computeSessions(window: LiveWindow, filter: LiveFilter, before: s
         WHERE timestamp > now() - ${w} - INTERVAL 1 DAY
           AND event NOT IN ${NOISE} ${INTERNAL}
           AND notEmpty(coalesce(properties.$session_id, ''))
+          ${staging ? "" : `AND NOT (${STAGING_HOST_SQL})`}
           ${recorded}
         GROUP BY sid
         HAVING ${having.join(" AND ")}
         ORDER BY last DESC
         LIMIT ${PAGE + 1}`,
-      { name: `live_sessions_${window}_${filter}`, values: before ? { before } : undefined, ttlMs: 10_000 }
+      { name: `live_sessions_${window}_${filter}_${course}${staging ? "_stg" : ""}`, values: before ? { before } : undefined, ttlMs: 10_000 }
     ),
   ]);
 
@@ -176,6 +185,8 @@ async function computeSessions(window: LiveWindow, filter: LiveFilter, before: s
         referrer: ref === "$direct" ? "direct" : ref,
         active: now - new Date(last).getTime() < ACTIVE_MS,
         recording: null,
+        course: classifySummary(entry, num(r[19])),
+        staging: num(r[20]) > 0,
         timeline,
       };
     });
@@ -184,12 +195,14 @@ async function computeSessions(window: LiveWindow, filter: LiveFilter, before: s
 }
 
 /** the newest page refreshes every 30 s; older pages (`before`) barely change */
-const latestSessions = sharedCache("live_sessions", (window: LiveWindow, filter: LiveFilter) => computeSessions(window, filter, null), { revalidate: 30, maxAge: 86400 });
+const latestSessions = sharedCache("live_sessions", (window: LiveWindow, filter: LiveFilter, course: Course, staging: boolean) => computeSessions(window, filter, null, course, staging), { revalidate: 30, maxAge: 86400 });
 const olderSessions = sharedCache("live_sessions_before", computeSessions, { revalidate: 120, maxAge: 1800 });
 
-export function getLiveSessions(opts: { window: LiveWindow; filter: LiveFilter; before?: string | null }): Promise<LiveSessionsRes> {
+export function getLiveSessions(opts: { window: LiveWindow; filter: LiveFilter; before?: string | null; course?: Course; staging?: boolean }): Promise<LiveSessionsRes> {
   const t = opts.before ? new Date(opts.before).getTime() : NaN;
-  return Number.isNaN(t) ? latestSessions(opts.window, opts.filter) : olderSessions(opts.window, opts.filter, new Date(t).toISOString());
+  const course = opts.course ?? "all";
+  const staging = !!opts.staging;
+  return Number.isNaN(t) ? latestSessions(opts.window, opts.filter, course, staging) : olderSessions(opts.window, opts.filter, new Date(t).toISOString(), course, staging);
 }
 
 /* ───────────────────────────── replays ───────────────────────────── */
@@ -240,7 +253,7 @@ export function getLiveReplays(ids: string[]): Promise<LiveReplaysRes> {
 
 /* ───────────────────────────── all in one (older clients) ───────────────────────────── */
 
-export async function getLiveFeed(opts: { window: LiveWindow; filter: LiveFilter; before?: string | null }): Promise<LiveFeedRes> {
+export async function getLiveFeed(opts: { window: LiveWindow; filter: LiveFilter; before?: string | null; course?: Course; staging?: boolean }): Promise<LiveFeedRes> {
   const [head, list] = await Promise.all([getLiveHead(), getLiveSessions(opts)]);
   const recs = await getLiveReplays(list.sessions.map((s) => s.id));
   return {

@@ -5,6 +5,7 @@ import { useEffect } from "react";
 import { Badge, LiveDot, timeAgo } from "@/components/admin/ui";
 import type { LiveEvent, LiveSession } from "@/lib/analytics/journeys";
 import { KIND_META, KindMark, Who, clock, countryFlag, cx, hhmm, personHref } from "@/components/admin/journeys/bits";
+import { CourseTag } from "@/components/admin/journeys/CourseFilter";
 import { activeLabel, IDLE_NOTE } from "@/lib/analytics/recordingFilter";
 import ReplayPlayer from "@/components/admin/journeys/ReplayPlayer";
 
@@ -65,6 +66,7 @@ export default function SessionRow({
         <div className="min-w-0">
           <div className="flex min-w-0 flex-wrap items-center gap-x-2.5 gap-y-1">
             {s.personId ? <Who who={s.who} identified={s.identified} href={personHref(s.personId)} className="!text-[13px]" /> : <Who who={s.who} identified={s.identified} className="!text-[13px]" />}
+            <CourseTag course={s.course} staging={s.staging} />
             {s.identified && <Badge tone="signal">signed in</Badge>}
             {s.recording?.ongoing && <Badge tone="solid">recording</Badge>}
           </div>

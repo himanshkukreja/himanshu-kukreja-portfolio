@@ -191,6 +191,8 @@ function recordingFor(p: PersonRow, s: { id: string; start: number; events: Time
     pageviews: pages.length + 1,
     rage: s.events.filter((e) => e.event === "$rageclick").length,
     dead: i === 3 ? 2 : 0,
+    course: "sdm",
+    staging: false,
   };
 }
 
@@ -307,6 +309,8 @@ function liveSessions(): LiveSession[] {
         referrer: p.referrer,
         active: ago < 5,
         recording: hasRec ? { id: s.id, duration: dur + 40, active: Math.round(dur * 0.6), ongoing: ago < 2 } : null,
+        course: "sdm",
+        staging: false,
         timeline: evs,
       });
     });

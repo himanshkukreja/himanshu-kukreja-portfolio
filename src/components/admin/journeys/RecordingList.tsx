@@ -5,6 +5,7 @@ import { Badge, EmptyState, fmtDate, useNow } from "@/components/admin/ui";
 import type { Recording } from "@/lib/analytics/journeys";
 import { Who, clock, cx, personHref } from "./bits";
 import { activeLabel, filterRecordings, IDLE_NOTE } from "@/lib/analytics/recordingFilter";
+import { CourseTag } from "./CourseFilter";
 import ReplayPlayer from "./ReplayPlayer";
 
 /** Recordings with an inline player that opens under the row. */
@@ -36,6 +37,7 @@ export default function RecordingList({ recordings: all, showWho = true, empty, 
               <div className="min-w-0 flex-1">
                 <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
                   <span className="font-mono text-xs text-fg">{fmtDate(r.start, true)}</span>
+                  <CourseTag course={r.course} staging={r.staging} />
                   {r.ongoing && <Badge tone="solid">live</Badge>}
                   {!r.viewed && <Badge tone="signal">new</Badge>}
                   {r.rage > 0 && <Badge tone="bad">{r.rage} rage</Badge>}

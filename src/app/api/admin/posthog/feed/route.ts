@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { requireAdmin } from "@/lib/admin/auth";
 import { notConfigured, phErrorResponse } from "@/lib/analytics/posthogServer";
+import { parseCourse } from "@/lib/analytics/courseFilter";
 import { getLiveFeed, getLiveHead, getLiveReplays, getLiveSessions, isLiveFilter, isLiveWindow, REPLAY_IDS_MAX } from "@/lib/analytics/liveServer";
 
 export const dynamic = "force-dynamic";
@@ -11,7 +12,7 @@ const noStore = { "Cache-Control": "no-store, private" };
  * /admin/live, in parts so the page paints progressively (each part is served from the shared data cache and
  * refreshed in the background):
  *   ?part=head                                         → header stats, events per minute, pages people are on
- *   ?part=sessions&window=30m|24h|7d&filter=all|signed|learn|recorded&before=<iso>
+ *   ?part=sessions&window=30m|24h|7d&filter=all|signed|learn|recorded&before=<iso>&course=all|dsa|sdm|sdm-dsa&staging=1 (include staging hosts; left out by default)
  *                                                      → the latest sessions with their events (`before` pages back)
  *   ?part=replays&ids=<sid>,<sid>…                     → which of those sessions have a replay
  *   (no part)                                          → all of it in one response (LiveFeedRes)
@@ -24,7 +25,7 @@ export async function GET(request: NextRequest) {
   const sp = request.nextUrl.searchParams;
   const w = sp.get("window");
   const f = sp.get("filter");
-  const opts = { window: isLiveWindow(w) ? w : ("24h" as const), filter: isLiveFilter(f) ? f : ("all" as const), before: sp.get("before") };
+  const opts = { window: isLiveWindow(w) ? w : ("24h" as const), filter: isLiveFilter(f) ? f : ("all" as const), before: sp.get("before"), course: parseCourse(sp.get("course")), staging: sp.get("staging") === "1" };
   try {
     switch (sp.get("part")) {
       case "head":

@@ -1,6 +1,7 @@
 import "server-only";
 import { isExcludedEmail, isLocalHost } from "./exclude";
 import { POSTHOG_UI_HOST } from "./config";
+import { DSA_PATH_SQL, STAGING_HOST_SQL, isStagingHost, matchesCourse, type Course, type SessionCourse } from "./courseFilter";
 import { isSubstantialRecording, substantialHavingPredicates } from "./recordingFilter";
 import type { EmbedRes, LiveRes, PageDetailRes, PathsRes, PeopleRes, PersonInfo, PersonRes, PersonRow, Recording, RecordingsRes, StreamEvent, TimelineEvent } from "./journeys";
 import { computePaths, describe, eventPropsSelect, parseElements, propsFrom, type PathRow, type TitleOf } from "./journeysModel";
@@ -157,13 +158,18 @@ export type ApiRecording = {
   person?: { uuid?: string; name?: string; distinct_ids?: string[]; properties?: Record<string, unknown> | null } | null;
 };
 
-function mapRecording(r: ApiRecording, extra?: { pages: string[]; pageviews: number; rage: number; dead: number }): Recording {
+function mapRecording(r: ApiRecording, extra: { pages: string[]; pageviews: number; rage: number; dead: number } | undefined, course: SessionCourse): Recording {
   const props = r.person?.properties || {};
   const email = typeof props.email === "string" ? props.email : null;
   const name = typeof props.name === "string" ? props.name : null;
   let startUrl: string | null = r.start_url || null;
+  let host = "";
   try {
-    if (startUrl) startUrl = new URL(startUrl).pathname;
+    if (startUrl) {
+      const u = new URL(startUrl);
+      host = u.host;
+      startUrl = u.pathname;
+    }
   } catch {
     /* keep raw */
   }
@@ -186,6 +192,8 @@ function mapRecording(r: ApiRecording, extra?: { pages: string[]; pageviews: num
     pageviews: extra?.pageviews ?? 0,
     rage: extra?.rage ?? 0,
     dead: extra?.dead ?? 0,
+    course,
+    staging: isStagingHost(host),
   };
 }
 
@@ -219,11 +227,45 @@ async function listRecordings(params: Record<string, string>): Promise<{ results
   return { results: r?.results ?? [], hasNext: !!(r?.has_next ?? r?.next) };
 }
 
-async function computeRecordings(opts: { person?: string | null; path?: string | null; days: number; offset: number; limit: number; includeIdle?: boolean }): Promise<RecordingsRes> {
-  const params: Record<string, string> = { limit: String(opts.limit), offset: String(opts.offset), date_from: `-${opts.days}d` };
-  if (opts.person && isUuid(opts.person)) params.person_uuid = opts.person;
+const COURSE_IDS_MAX = 250;
+
+/**
+ * Sessions that visited /dsa in the last `days` (+1) days, newest first: id → class. Everything not in this map never
+ * touched /dsa ("sdm"). `entryDsa` = the session's first pageview was a /dsa page; `staging` = any pageview on a staging host.
+ */
+async function dsaSessions(days: number): Promise<Map<string, { course: SessionCourse; staging: boolean }>> {
+  const rows = await hogql(
+    `SELECT properties.$session_id AS sid,
+        argMin(${DSA_PATH_SQL}, timestamp) AS entry_dsa,
+        max(${STAGING_HOST_SQL}) AS stg
+      FROM events
+      WHERE event = '$pageview' AND timestamp > now() - INTERVAL ${days + 1} DAY AND notEmpty(coalesce(properties.$session_id, '')) ${INTERNAL}
+      GROUP BY sid
+      HAVING countIf(${DSA_PATH_SQL}) > 0
+      ORDER BY max(timestamp) DESC
+      LIMIT 5000`,
+    { name: "dsa_sessions", ttlMs: 60_000 }
+  );
+  const out = new Map<string, { course: SessionCourse; staging: boolean }>();
+  for (const r of rows) if (r[0]) out.set(String(r[0]), { course: num(r[1]) ? "dsa" : "sdm-dsa", staging: !!num(r[2]) });
+  return out;
+}
+
+const hostOf = (r: ApiRecording) => {
+  try {
+    return r.start_url ? new URL(r.start_url).host : "";
+  } catch {
+    return "";
+  }
+};
+
+async function computeRecordings(opts: { person?: string | null; path?: string | null; days: number; offset: number; limit: number; includeIdle?: boolean; course?: Course; includeStaging?: boolean }): Promise<RecordingsRes> {
+  const course = opts.course ?? "all";
+  const includeStaging = opts.includeStaging !== false;
+  const base: Record<string, string> = { date_from: `-${opts.days}d` };
+  if (opts.person && isUuid(opts.person)) base.person_uuid = opts.person;
   // only recordings with real activity (server-side, so pages aren't left short or empty); idle ones on request
-  if (!opts.includeIdle) params.having_predicates = substantialHavingPredicates();
+  if (!opts.includeIdle) base.having_predicates = substantialHavingPredicates();
   // sessions that viewed the page (path filter): asked alongside the replay list, not after it
   const pathSessions = opts.path
     ? hogql(
@@ -232,31 +274,61 @@ async function computeRecordings(opts: { person?: string | null; path?: string |
       ).then((rows) => new Set(rows.map((r) => String(r[0]))))
     : Promise.resolve(null);
   pathSessions.catch(() => null);
-  const listed = await listRecordings(params);
-  // internal traffic: the owner's test accounts and localhost sessions aren't shown
-  let results = listed.results.filter((r) => {
+  // class per session (needed for the filter and the row tag); a failed lookup shows everything as SDM rather than failing the list
+  const dsa = await dsaSessions(opts.days).catch(() => new Map<string, { course: SessionCourse; staging: boolean }>());
+  const courseOf = (id: string): SessionCourse => dsa.get(id)?.course ?? "sdm";
+  // internal traffic: the owner's test accounts and localhost sessions aren't shown; staging unless asked for
+  const keep = (r: ApiRecording) => {
     const email = typeof r.person?.properties?.email === "string" ? (r.person.properties.email as string) : null;
-    let host = "";
-    try {
-      host = r.start_url ? new URL(r.start_url).host : "";
-    } catch {
-      host = "";
-    }
-    return !isExcludedEmail(email) && !isLocalHost(host);
-  });
-  // belt and braces if PostHog ignores the predicate
-  if (!opts.includeIdle) results = results.filter((r) => isSubstantialRecording(r.active_seconds));
-  const hasNext = listed.hasNext;
-  // belt and braces: keep only this person's recordings even if the filter param is ignored
-  if (opts.person) results = results.filter((r) => !r.person?.uuid || r.person.uuid === opts.person);
+    const host = hostOf(r);
+    if (isExcludedEmail(email) || isLocalHost(host)) return false;
+    if (!includeStaging && (isStagingHost(host) || dsa.get(r.id)?.staging)) return false;
+    if (opts.person && r.person?.uuid && r.person.uuid !== opts.person) return false;
+    if (!opts.includeIdle && !isSubstantialRecording(r.active_seconds)) return false;
+    return matchesCourse(course, courseOf(r.id));
+  };
   const onPath = await pathSessions;
-  if (onPath) results = results.filter((r) => onPath.has(r.id));
+  const keepAll = (r: ApiRecording) => keep(r) && (!onPath || onPath.has(r.id));
+
+  let results: ApiRecording[];
+  let hasNext: boolean;
+  if (course === "dsa" || course === "sdm-dsa") {
+    // the recordings API takes the session ids itself, so pages stay full and ordered: ask only for the sessions in the class
+    const ids = [...dsa.entries()]
+      .filter(([id, v]) => matchesCourse(course, v.course) && (includeStaging || !v.staging))
+      .map(([id]) => id)
+      .slice(0, COURSE_IDS_MAX);
+    if (!ids.length) return { configured: true, recordings: [], hasNext: false };
+    const listed = await listRecordings({ ...base, session_ids: JSON.stringify(ids), limit: String(opts.limit), offset: String(opts.offset) });
+    results = listed.results.filter(keepAll);
+    hasNext = listed.hasNext;
+  } else if (course === "all" && includeStaging && !opts.path) {
+    const listed = await listRecordings({ ...base, limit: String(opts.limit), offset: String(opts.offset) });
+    results = listed.results.filter(keepAll);
+    hasNext = listed.hasNext;
+  } else {
+    // SDM only / staging left out / page filter: keep reading PostHog pages until this page is full (or the history runs out)
+    const RAW = 100;
+    const MAX_SCANS = 12;
+    const want = opts.offset + opts.limit + 1;
+    const kept: ApiRecording[] = [];
+    let raw = 0;
+    let more = true;
+    for (let i = 0; i < MAX_SCANS && more && kept.length < want; i++, raw += RAW) {
+      const listed = await listRecordings({ ...base, limit: String(RAW), offset: String(raw) });
+      kept.push(...listed.results.filter(keepAll));
+      more = listed.hasNext;
+    }
+    results = kept.slice(opts.offset, opts.offset + opts.limit);
+    // (if the scan cap is hit first, older matches beyond it aren't offered)
+    hasNext = kept.length > opts.offset + opts.limit;
+  }
   const starts = results.map((r) => Date.parse(r.start_time || "")).filter(Number.isFinite);
   const extras = await sessionExtras(
     results.map((r) => r.id),
     starts.length ? Math.min(...starts) : null
   );
-  return { configured: true, recordings: results.map((r) => mapRecording(r, extras.get(r.id))), hasNext };
+  return { configured: true, recordings: results.map((r) => mapRecording(r, extras.get(r.id), courseOf(r.id))), hasNext };
 }
 
 /** Replay list (Journeys → Recordings, person pages): shared across instances, 60 s. */
