@@ -21,7 +21,6 @@ const CACHE_MS = 6 * 3600_000;
 const CACHE_MAX = 300;
 type Cached = Omit<SmartAnswer, "cached" | "creditsLeft">;
 const cache = new Map<string, { at: number; a: Cached }>();
-const inflight = new Map<string, Promise<{ a: Cached } | { error: string; status: number; creditsLeft?: number | null }>>();
 
 function remember(key: string, a: Cached) {
   cache.delete(key);
@@ -67,11 +66,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ ...a, cached: false } satisfies SmartAnswer);
   }
 
-  // one call per learner per query at a time (a double submit waits for the first)
-  const fk = `${me.id || "dev"}|${ck}`;
-  let job = inflight.get(fk);
-  if (!job) {
-    job = (async () => {
+  // Workers: a request must never await a promise another request created (it fails once that request ends), so a double
+  // submit runs its own call (the box also ignores a second Enter while one is running).
+  const job = (async () => {
       const { text, ids, fam } = candidateLines(res.candidates, (d) => (d as { fam?: string }).fam ?? d.id);
       const user = smartSearchUser(q, text);
       const r = await callClaude({
@@ -97,9 +94,7 @@ export async function POST(request: Request) {
       if (p.answer.scope !== "off_topic" && !p.answer.path.length) return { error: "No learning path this time. The results below are complete.", status: 502, creditsLeft: r.creditsLeft };
       remember(ck, p.answer);
       return { a: p.answer, creditsLeft: r.creditsLeft };
-    })().finally(() => inflight.delete(fk));
-    inflight.set(fk, job);
-  }
+    })();
   const out = await job;
   if ("error" in out) return NextResponse.json({ error: out.error, creditsLeft: out.creditsLeft ?? null }, { status: out.status });
   logAsk(out.a);

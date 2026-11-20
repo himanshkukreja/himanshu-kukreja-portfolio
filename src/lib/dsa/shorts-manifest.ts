@@ -191,7 +191,7 @@ export async function rebuildShorts(origin: string, auth: string): Promise<void>
 /* ------------------------------------------------------------------ reading */
 
 let memory: { sha: string | null; rows: ShortRow[]; at: number } | null = null;
-let loading: Promise<ShortRow[]> | null = null;
+// Workers: a request must never await a promise another request created (it fails once that request ends): a load in progress is not shared; `memory` holds the settled rows.
 /** how long this isolate keeps the manifest before it reads the object again (a rebuild shows within this) */
 const TTL = 30_000;
 const NO_SHA_TTL = 5 * 60_000;
@@ -199,8 +199,8 @@ const NO_SHA_TTL = 5 * 60_000;
 /** Every short's row, in course order: this isolate's copy, else the commit's R2 object. Throws when it isn't built yet. */
 export async function shortRows(): Promise<ShortRow[]> {
   if (memory && Date.now() - memory.at < (memory.sha ? TTL : NO_SHA_TTL)) return memory.rows;
-  if (!loading) {
-    loading = (async () => {
+  {
+    return (async () => {
       const sha = await shortsSha();
       if (sha) {
         const raw = await readDerived("dsa", finalName(sha));
@@ -216,7 +216,6 @@ export async function shortRows(): Promise<ShortRow[]> {
       const rows = (await pool(Array.from({ length: total }, (_, n) => n), (n) => buildShortsChunk(n))).flat();
       memory = { sha, rows, at: Date.now() };
       return rows;
-    })().finally(() => { loading = null; });
+    })();
   }
-  return loading;
 }

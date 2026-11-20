@@ -26,7 +26,6 @@ export type AdminRow = { email: string; added_by: string; added_at: string; note
 
 type Cache = { at: number; rows: AdminRow[]; table: boolean };
 let cache: Cache | null = null;
-let inflight: Promise<Cache> | null = null;
 let warned = false;
 
 /** A missing table: Postgres 42P01, or PostgREST's "not in the schema cache" (PGRST205/PGRST204). */
@@ -49,10 +48,8 @@ async function load(): Promise<Cache> {
 /** The added admins (cached a minute). `table` false: admin_users isn't there yet (env owners only). */
 export async function addedAdmins(fresh = false): Promise<{ rows: AdminRow[]; table: boolean }> {
   if (!fresh && cache && Date.now() - cache.at < TTL) return cache;
-  inflight ??= load().finally(() => {
-    inflight = null;
-  });
-  cache = await inflight;
+  // the settled list is shared, never a pending read (Workers: a request can't await another request's promise)
+  cache = await load();
   return cache;
 }
 

@@ -129,8 +129,9 @@ function merge(snap: Snap, fresh: StoredEvent[], now: number): { snap: Snap; add
   return { snap: { rows: [...snap.rows, ...add].sort(byTime), full: snap.full, synced: now }, added: add.length };
 }
 
+// Workers: `mem` holds a settled snapshot only; a pending refresh is never shared with another request (awaiting a
+// promise another request created fails once that request ends), so concurrent misses each refresh.
 let mem: Snap | null = null;
-let pending: Promise<Snap> | null = null;
 
 async function refresh(): Promise<Snap> {
   const now = Date.now();
@@ -157,8 +158,7 @@ async function refresh(): Promise<Snap> {
 /** Every analytics event (oldest first), at most SYNC_MS behind the database. Callers filter by window themselves. */
 export async function allEvents(): Promise<StoredEvent[]> {
   if (mem && Date.now() - mem.synced < SYNC_MS && Date.now() - mem.full < FULL_MS) return mem.rows;
-  if (!pending) pending = refresh().finally(() => (pending = null));
-  return (await pending).rows;
+  return (await refresh()).rows;
 }
 
 /** Drop every copy (after rows were deleted, e.g. a learner reset); the next read loads the table again. */

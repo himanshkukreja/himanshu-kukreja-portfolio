@@ -4,6 +4,7 @@ import { getLearningResource } from "@/lib/github";
 import { parseMCQMarkdown } from "@/lib/mcq-parser";
 import { getLessonStages } from "@/lib/learn/actions";
 import type { CourseLesson, CourseMap } from "@/lib/learn/types";
+import { background } from "@/lib/platform";
 
 /**
  * Course structure for admin analytics: every lesson in reading order with titles, plus MCQ answer
@@ -39,7 +40,9 @@ export type CourseIndex = {
 };
 
 const TTL = 5 * 60_000;
-let indexCache: { at: number; value: Promise<CourseIndex> } | null = null;
+// Workers: a request must never await a promise another request created (it fails once that request ends), so only
+// settled values are shared across requests; concurrent misses each compute.
+let indexCache: { at: number; value: CourseIndex } | null = null;
 
 async function build(): Promise<CourseIndex> {
   const map = await getCourseMap(COURSE_ID);
@@ -114,21 +117,15 @@ async function build(): Promise<CourseIndex> {
 export async function getCourseIndex(): Promise<CourseIndex> {
   if (indexCache && Date.now() - indexCache.at < TTL) return indexCache.value;
   if (indexCache) {
-    // stale-while-revalidate: serve the previous index, rebuild in the background
+    // stale-while-revalidate: serve the previous index, rebuild in the background (inside this request's lifetime)
     const stale = indexCache.value;
-    const fresh = build();
     indexCache = { at: Date.now(), value: stale };
-    fresh.then((v) => (indexCache = { at: Date.now(), value: Promise.resolve(v) })).catch(() => {});
+    background(build().then((v) => void (indexCache = { at: Date.now(), value: v })).catch(() => {}));
     return stale;
   }
-  const value = build();
+  const value = await build();
   indexCache = { at: Date.now(), value };
-  try {
-    return await value;
-  } catch (e) {
-    indexCache = null;
-    throw e;
-  }
+  return value;
 }
 
 /** Title for any lesson key, falling back to a readable slug. */
@@ -151,7 +148,7 @@ export type McqKey = {
   questions: Map<number, { part: number; text: string; correct: string; options: Record<string, string> }>;
 };
 
-const mcqCache = new Map<string, { at: number; value: Promise<McqKey | null> }>();
+const mcqCache = new Map<string, { at: number; value: McqKey | null }>();
 
 export async function getMcqKey(week: string, slug: string): Promise<McqKey | null> {
   const k = `${week}/${slug}`;
@@ -178,8 +175,9 @@ export async function getMcqKey(week: string, slug: string): Promise<McqKey | nu
       });
     return { title: a.title || data.resource.title, parts, questions };
   })().catch(() => null);
-  mcqCache.set(k, { at: Date.now(), value });
-  return value;
+  const settled = await value;
+  mcqCache.set(k, { at: Date.now(), value: settled });
+  return settled;
 }
 
 // ------------------------------------------------------------------ stages

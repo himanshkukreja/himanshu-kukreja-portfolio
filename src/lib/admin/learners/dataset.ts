@@ -228,18 +228,15 @@ async function load(): Promise<Dataset> {
 }
 
 const TTL = 30_000;
-let cache: { at: number; value: Promise<Dataset> } | null = null;
+// Workers: a request must never await a promise another request created (it fails once that request ends), so only
+// settled values are shared across requests; concurrent misses each compute.
+let cache: { at: number; value: Dataset } | null = null;
 
 export async function getDataset(opts: { fresh?: boolean } = {}): Promise<Dataset> {
   if (!opts.fresh && cache && Date.now() - cache.at < TTL) return cache.value;
-  const value = load();
+  const value = await load();
   cache = { at: Date.now(), value };
-  try {
-    return await value;
-  } catch (e) {
-    cache = null;
-    throw e;
-  }
+  return value;
 }
 
 /** Drop the cache (after a reset). */

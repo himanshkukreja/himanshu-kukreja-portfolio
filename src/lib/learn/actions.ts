@@ -17,7 +17,8 @@ type Rendered = { stages: StageInfo[]; sections: { id: string; text: string }[] 
 
 const SAFE = /^[A-Za-z0-9._-]{1,120}$/;
 const TTL = 5 * 60_000;
-const cache = new Map<string, { at: number; value: Promise<Rendered | null> }>();
+// Workers: a request must never await a promise another request created (it fails once that request ends): settled values only.
+const cache = new Map<string, { at: number; value: Rendered | null }>();
 
 function textOf(html: string) {
   return html
@@ -66,8 +67,9 @@ async function load(week: string, slug: string): Promise<Rendered | null> {
     const stages = rendered.stages.map((s: Stage) => ({ id: s.id, label: s.label, title: s.title, minutes: s.minutes }));
     return { stages, sections };
   })().catch(() => null);
-  cache.set(key, { at: Date.now(), value });
-  return value;
+  const settled = await value;
+  cache.set(key, { at: Date.now(), value: settled });
+  return settled;
 }
 
 export async function getLessonStages(week: string, slug: string): Promise<StageInfo[]> {

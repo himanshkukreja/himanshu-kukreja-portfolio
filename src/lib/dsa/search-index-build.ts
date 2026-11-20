@@ -160,7 +160,7 @@ async function assembleFromR2(sha: string): Promise<StoredMoments | null> {
 
 type Entry = { sha: string | null; body: string; at: number };
 const memory = new Map<SearchPart, Entry>();
-const building = new Map<string, Promise<{ body: string; from: "memory" | "r2" | "built" }>>();
+// Workers: a request must never await a promise another request created (it fails once that request ends): a build in progress is not shared between requests (the warm-up writes these to R2 ahead of time).
 /** without a bundle sha (local files) the body is rebuilt after this */
 const NO_SHA_TTL = 5 * 60_000;
 
@@ -171,10 +171,8 @@ export const contentSha = () => dsaBundleVersion().catch(() => null);
 export async function loadSearchPart(part: SearchPart, sha: string | null): Promise<{ body: string; from: "memory" | "r2" | "built" }> {
   const hit = memory.get(part);
   if (hit && hit.sha === sha && (sha || Date.now() - hit.at < NO_SHA_TTL)) return { body: hit.body, from: "memory" };
-  const key = `${part}:${sha}`;
-  let p = building.get(key);
-  if (!p) {
-    p = (async () => {
+  {
+    return (async () => {
       const name = sha ? `search-${part}-v1-${sha}` : null;
       if (name) {
         const raw = await readDerived("dsa", name);
@@ -197,8 +195,6 @@ export async function loadSearchPart(part: SearchPart, sha: string | null): Prom
       if (name) await writeDerived("dsa", name, body);
       memory.set(part, { sha, body, at: Date.now() });
       return { body, from: "built" as const };
-    })().finally(() => building.delete(key));
-    building.set(key, p);
+    })();
   }
-  return p;
 }

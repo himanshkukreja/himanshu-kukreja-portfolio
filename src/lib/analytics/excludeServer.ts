@@ -7,7 +7,8 @@ import { supabase } from "@/lib/supabase";
 import { isExcludedEmail } from "./exclude";
 
 type Ids = { users: Set<string>; visitors: Set<string> };
-let cache: { at: number; p: Promise<Ids> } | null = null;
+// Workers: a request must never await a promise another request created (it fails once that request ends): the settled ids only.
+let cache: { at: number; ids: Ids } | null = null;
 
 async function load(): Promise<Ids> {
   const users = new Set<string>();
@@ -25,10 +26,12 @@ async function load(): Promise<Ids> {
   return { users, visitors };
 }
 
-export function excludedIds(): Promise<Ids> {
+export async function excludedIds(): Promise<Ids> {
   const now = Date.now();
-  if (!cache || now - cache.at > 10 * 60_000) cache = { at: now, p: load().catch(() => ({ users: new Set<string>(), visitors: new Set<string>() })) };
-  return cache.p;
+  if (cache && now - cache.at <= 10 * 60_000) return cache.ids;
+  const ids = await load().catch(() => ({ users: new Set<string>(), visitors: new Set<string>() }));
+  cache = { at: Date.now(), ids };
+  return ids;
 }
 
 type Row = { user_id?: string | null; visitor_id?: string | null; metadata?: Record<string, unknown> | null };

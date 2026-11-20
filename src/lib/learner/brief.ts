@@ -63,20 +63,20 @@ export function dsaRows(userId: string): Promise<DsaLearnerRaw> {
 
 /* ------------------------------------------------------------------ the index (titles, concepts, modules) */
 
-let ixMemo: { at: number; p: Promise<DsaIndex & { modules: Map<string, string>; built: Set<string> }> } | null = null;
+// Workers: a request must never await a promise another request created (it fails once that request ends): the settled index only.
+let ixMemo: { at: number; v: DsaIndex & { modules: Map<string, string>; built: Set<string> } } | null = null;
 /** Problem titles, concepts and modules, kept ten minutes (also the course chat's DSA digest: lib/ai/chat/server.ts). */
-export function dsaIndex(): Promise<DsaIndex & { modules: Map<string, string>; built: Set<string> }> {
-  if (ixMemo && Date.now() - ixMemo.at < 10 * 60_000) return ixMemo.p;
-  const p = Promise.all([getProblemIndex().catch(() => []), getConceptIndex().catch(() => [])]).then(([ps, cs]) => ({
+export async function dsaIndex(): Promise<DsaIndex & { modules: Map<string, string>; built: Set<string> }> {
+  if (ixMemo && Date.now() - ixMemo.at < 10 * 60_000) return ixMemo.v;
+  const v = await Promise.all([getProblemIndex().catch(() => []), getConceptIndex().catch(() => [])]).then(([ps, cs]) => ({
     problems: new Map(ps.map((x) => [x.id, { title: x.title, concept: x.concept, level: x.level }])),
     concepts: new Map(cs.map((x) => [x.id, x.title])),
     // the ready lessons: totals count ready content, the same as Progress's Summary
     built: new Set(cs.filter((x) => x.status === "built").map((x) => x.id)),
     modules: new Map([...cs.map((x) => [x.id, x.module] as const), ...ps.map((x) => [`p:${x.id}`, x.module] as const)]),
   }));
-  ixMemo = { at: Date.now(), p };
-  p.catch(() => (ixMemo = null));
-  return p;
+  ixMemo = { at: Date.now(), v };
+  return v;
 }
 
 /* ------------------------------------------------------------------ the brief */

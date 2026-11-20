@@ -11,7 +11,9 @@ import { sharedCache } from "@/lib/admin/sharedCache";
  * instance; fails soft to "no title" (paths still show).
  */
 const TTL = 10 * 60_000;
-let memo: { at: number; value: Promise<TitleOf> } | null = null;
+// Workers: a request must never await a promise another request created (it fails once that request ends), so only
+// settled values are shared across requests; concurrent misses each compute.
+let memo: { at: number; value: TitleOf } | null = null;
 
 const STATIC: Record<string, string> = {
   "/": "Home / course hub",
@@ -51,12 +53,12 @@ function resolverOf(map: Record<string, string>): TitleOf {
   };
 }
 
-export function titleResolver(): Promise<TitleOf> {
+export async function titleResolver(): Promise<TitleOf> {
   const now = Date.now();
   if (memo && now - memo.at < TTL) return memo.value;
-  const value = sharedMap()
+  const value = await sharedMap()
     .then(resolverOf)
     .catch(() => ((p: string | null | undefined) => (p ? (STATIC[p] ?? null) : null)) as TitleOf);
-  memo = { at: now, value };
+  memo = { at: Date.now(), value };
   return value;
 }

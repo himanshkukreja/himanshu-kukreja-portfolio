@@ -160,15 +160,16 @@ export async function phFetchText(path: string, timeoutMs = 45_000): Promise<str
 
 /* ───────────────────────────── cache ───────────────────────────── */
 
-const cache = new Map<string, { at: number; ttl: number; value: Promise<unknown> }>();
+// Workers: a request must never await a promise another request created (it fails once that request ends), so only
+// settled values are shared across requests; concurrent misses each compute.
+const cache = new Map<string, { at: number; ttl: number; value: unknown }>();
 
-export function cached<T>(k: string, ttlMs: number, fn: () => Promise<T>): Promise<T> {
+export async function cached<T>(k: string, ttlMs: number, fn: () => Promise<T>): Promise<T> {
   const now = Date.now();
   const hit = cache.get(k);
-  if (hit && now - hit.at < hit.ttl) return hit.value as Promise<T>;
-  const value = fn();
-  cache.set(k, { at: now, ttl: ttlMs, value });
-  value.catch(() => cache.delete(k));
+  if (hit && now - hit.at < hit.ttl) return hit.value as T;
+  const value = await fn();
+  cache.set(k, { at: Date.now(), ttl: ttlMs, value });
   if (cache.size > 300) {
     for (const [ck, v] of cache) if (now - v.at > v.ttl) cache.delete(ck);
   }

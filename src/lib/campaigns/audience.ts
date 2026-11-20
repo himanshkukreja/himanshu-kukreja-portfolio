@@ -99,7 +99,8 @@ async function lessonTitles(): Promise<Map<string, { title: string; href: string
   return out;
 }
 
-let baseCache: { at: number; value: Promise<Base> } | null = null;
+// Workers: a request must never await a promise another request created (it fails once that request ends): the settled base only.
+let baseCache: { at: number; value: Base } | null = null;
 
 async function buildBase(): Promise<Base> {
   type Prof = { id: string; full_name: string | null; current_streak?: number | null; total_lessons_completed?: number | null };
@@ -183,11 +184,8 @@ function nameOf(b: Base, email: string, overrides: Map<string, NameOverride> = b
 
 async function base(): Promise<Base> {
   if (baseCache && Date.now() - baseCache.at < 60_000) return baseCache.value;
-  const value = buildBase();
+  const value = await buildBase();
   baseCache = { at: Date.now(), value };
-  value.catch(() => {
-    if (baseCache?.value === value) baseCache = null;
-  });
   return value;
 }
 

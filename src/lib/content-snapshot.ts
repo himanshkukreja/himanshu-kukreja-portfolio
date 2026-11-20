@@ -24,7 +24,7 @@ type Snapshot = { sha: string; files: Map<string, Buffer>; dirs: Map<string, Set
 
 const CHECK_MS = 15_000;
 let snap: Snapshot | null = null;
-let loading: Promise<Snapshot | null> | null = null;
+// Workers: a request must never await a promise another request created (it fails once that request ends): a check in progress is not shared; concurrent misses each check.
 let failedAt = 0;
 
 /** Parse a (gzipped) tar: path → contents for regular files. Handles pax and GNU long names. */
@@ -131,8 +131,7 @@ export async function contentSnapshot(owner: string, repo: string, ref: string):
   if (!token || process.env.SDM_SNAPSHOT === "off") return null;
   if (snap && Date.now() - snap.checkedAt < CHECK_MS) return snap;
   if (!snap && Date.now() - failedAt < 60_000) return null; // don't hammer after a failure
-  if (loading) return loading;
-  loading = (async () => {
+  return (async () => {
     try {
       const h = await head(owner, repo, ref, token, snap?.etag ?? null);
       if (snap && (h.same || h.sha === snap.sha)) {
@@ -149,11 +148,8 @@ export async function contentSnapshot(owner: string, repo: string, ref: string):
       failedAt = Date.now();
       console.warn("[content-snapshot] falling back to per-file API:", (e as Error).message);
       return snap; // a stale snapshot beats none; null if there never was one
-    } finally {
-      loading = null;
     }
   })();
-  return loading;
 }
 
 /** Drop this instance's snapshot (POST /api/revalidate-courses): the next read re-checks at once. */

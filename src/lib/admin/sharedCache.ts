@@ -159,8 +159,8 @@ export function sharedCache<A extends unknown[], T>(name: string, fn: (...args: 
     return best ?? base(...args);
   };
 
-  // identical concurrent calls on one instance share one lookup; one background refresh per entry per period per instance
-  const inflight = new Map<string, Promise<T>>();
+  // one background refresh per entry per period per instance. Identical concurrent calls are NOT merged into one promise:
+  // on Workers a request can't await a promise another request created (it fails once that request ends).
   const refreshedAt = new Map<string, number>();
 
   const refreshLater = (key: string, args: A, rv: number) => {
@@ -184,9 +184,7 @@ export function sharedCache<A extends unknown[], T>(name: string, fn: (...args: 
 
   return (...args: A): Promise<T> => {
     const key = JSON.stringify(args);
-    const running = inflight.get(key);
-    if (running) return running;
-    const p = (async () => {
+    return (async () => {
       const rv = revalidateOf(args);
       let hit: Stamped<T>;
       try {
@@ -212,8 +210,6 @@ export function sharedCache<A extends unknown[], T>(name: string, fn: (...args: 
       if (fresh instanceof Unkept) return fresh.value;
       if (inNext()) await writeGen(rv, args, fresh).catch(() => {});
       return fresh.v;
-    })().finally(() => inflight.delete(key));
-    inflight.set(key, p);
-    return p;
+    })();
   };
 }

@@ -66,12 +66,13 @@ function evidenceFor(course: CertCourse, o: { worlds: number; partialMissingPart
   return ev;
 }
 
-let shape: Promise<CertCourse> | null = null;
-export function fixtureCourse(): Promise<CertCourse> {
-  shape ??= getCourseMap(COURSE_ID).then((m) => {
-    if (!m) throw new Error("course map unavailable");
-    return courseShape(m);
-  });
+// Workers: a request must never await a promise another request created (it fails once that request ends): the settled shape only.
+let shape: CertCourse | null = null;
+export async function fixtureCourse(): Promise<CertCourse> {
+  if (shape) return shape;
+  const m = await getCourseMap(COURSE_ID);
+  if (!m) throw new Error("course map unavailable");
+  shape = courseShape(m);
   return shape;
 }
 

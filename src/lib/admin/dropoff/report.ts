@@ -41,7 +41,9 @@ const WORDS_PER_MIN = 230;
 
 type Built = Omit<DropoffResponse, "detail"> & { byKey: Map<string, DropEvent[]>; refs: Map<string, LessonRef> };
 
-const memo = new Map<string, { at: number; value: Promise<Built> }>();
+// Workers: a request must never await a promise another request created (it fails once that request ends), so only
+// settled values are shared across requests; concurrent misses each compute.
+const memo = new Map<string, { at: number; value: Built }>();
 
 async function readEvents(name: string, since: string): Promise<RawRow[]> {
   const rows: RawRow[] = [];
@@ -166,14 +168,13 @@ async function build(days: number, sample: boolean): Promise<Built> {
   };
 }
 
-function built(days: number, fresh = false): Promise<Built> {
+async function built(days: number, fresh = false): Promise<Built> {
   const sample = dropoffFixtures();
   const k = `${days}|${sample}`;
   const hit = memo.get(k);
   if (hit && !fresh && Date.now() - hit.at < TTL) return hit.value;
-  const value = build(days, sample);
+  const value = await build(days, sample);
   memo.set(k, { at: Date.now(), value });
-  value.catch(() => memo.delete(k));
   return value;
 }
 

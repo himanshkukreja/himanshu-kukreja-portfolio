@@ -24,7 +24,6 @@ const ASK_TOKENS = 900;
 const CACHE_MS = 24 * 3600_000;
 const CACHE_MAX = 500;
 const cache = new Map<string, { at: number; a: SmartResponse }>();
-const inflight = new Map<string, Promise<{ a: SmartResponse; left: number | null } | { error: string; status: number }>>();
 
 /** the taxonomy and the system prompt, rebuilt every few minutes (the page's data is itself ISR) */
 let taxo: { at: number; t: Taxonomy; system: string; lessons: Record<string, string>; titles: Record<string, string> } | null = null;
@@ -64,11 +63,9 @@ export async function POST(request: Request) {
   const hit = cache.get(ck);
   if (hit && Date.now() - hit.at < CACHE_MS) return NextResponse.json({ ...hit.a, cached: true } satisfies SmartResponse, { headers: noStore });
 
-  // one call per learner per question at a time (a double Enter waits for the first)
-  const fk = `${me.id}|${ck}`;
-  let job = inflight.get(fk);
-  if (!job) {
-    job = (async () => {
+  // Workers: a request must never await a promise another request created (it fails once that request ends), so a double
+  // submit runs its own call (the box also ignores a second Enter while one is running).
+  const job = (async () => {
       // the passages the answer may use: the tutor's retrieval (lessons and problem statements; no editorials)
       const found = wantAnswer ? await searchDsa({ query: q, unlocked: new Set(), limit: 5, budget: 5000 }).catch(() => null) : null;
       const passages = (found?.hits ?? []).map((h, i) => ({ tag: `s${i + 1}`, link: { kind: h.kind === "problem" ? "problem" : "lesson", title: h.title.split(" › ")[0].replace(/ lecture$/, ""), href: h.href } as AskLink, h }));
@@ -103,9 +100,7 @@ export async function POST(request: Request) {
       cache.set(ck, { at: Date.now(), a: out });
       while (cache.size > CACHE_MAX) cache.delete(cache.keys().next().value as string);
       return { a: out, left: r.creditsLeft };
-    })().finally(() => inflight.delete(fk));
-    inflight.set(fk, job);
-  }
+    })();
   const out = await job;
   if ("error" in out) return NextResponse.json({ error: out.error }, { status: out.status, headers: noStore });
   return NextResponse.json({ ...out.a, cached: false, left: out.left } satisfies SmartResponse, { headers: noStore });

@@ -39,18 +39,18 @@ const within = <T,>(p: Promise<T>, ms: number, fallback: T): Promise<T> => Promi
 
 type DsaContent = { concepts: ConceptSummary[]; problems: ProblemSummary[]; links: { id: string; sdm: string[]; labs: string[] }[] };
 
-let dsaMemo: { at: number; p: Promise<DsaContent> } | null = null;
+// Workers: a request must never await a promise another request created (it fails once that request ends): these memos hold settled values only.
+let dsaMemo: { at: number; v: DsaContent } | null = null;
 /** DSA Mastery's concept and problem indexes and its concepts' System Design links, kept ten minutes. */
-function dsaContent(): Promise<DsaContent> {
-  if (dsaMemo && Date.now() - dsaMemo.at < 10 * 60_000) return dsaMemo.p;
-  const p = (async () => {
+async function dsaContent(): Promise<DsaContent> {
+  if (dsaMemo && Date.now() - dsaMemo.at < 10 * 60_000) return dsaMemo.v;
+  const v = await (async () => {
     const { getConceptIndex, getProblemIndex, getConceptLinks } = await import("@/lib/dsa/load");
     const [concepts, problems, links] = await Promise.all([getConceptIndex().catch(() => []), getProblemIndex().catch(() => []), within(getConceptLinks(), 15_000, [])]);
     return { concepts, problems, links };
   })();
-  dsaMemo = { at: Date.now(), p };
-  p.catch(() => (dsaMemo = null));
-  return p;
+  dsaMemo = { at: Date.now(), v };
+  return v;
 }
 
 const dsaHref = (c: Pick<ConceptSummary, "id" | "kind">) => (c.kind === "structure" ? `/dsa/structures/${c.id}` : c.kind === "algorithm" ? `/dsa/algorithms/${c.id}` : `/dsa/concepts/${c.id}`);
@@ -230,10 +230,10 @@ export async function topicText(key: string, missNums: number[] = []): Promise<R
 
 /* ------------------------------------------------------------------ connections */
 
-let ixMemo: { at: number; p: Promise<LinkIndex> } | null = null;
+let ixMemo: { at: number; v: LinkIndex } | null = null;
 async function linkIndex(map: CourseMap | null, dsa: DsaContent): Promise<LinkIndex> {
-  if (ixMemo && Date.now() - ixMemo.at < 10 * 60_000) return ixMemo.p;
-  const p = (async () => {
+  if (ixMemo && Date.now() - ixMemo.at < 10 * 60_000) return ixMemo.v;
+  const v = await (async () => {
     const labs = await within(getLabSummaries(), 10_000, []);
     const byId = new Map(dsa.concepts.map((c) => [c.id, c]));
     const lessons: LinkIndex["lessons"] = {};
@@ -247,9 +247,8 @@ async function linkIndex(map: CourseMap | null, dsa: DsaContent): Promise<LinkIn
       lessons,
     };
   })();
-  ixMemo = { at: Date.now(), p };
-  p.catch(() => (ixMemo = null));
-  return p;
+  ixMemo = { at: Date.now(), v };
+  return v;
 }
 
 export type ConnectionAsk = { kind: "sdm"; key: string } | { kind: "dsa-concept"; id: string } | { kind: "dsa-problem"; id: string };
