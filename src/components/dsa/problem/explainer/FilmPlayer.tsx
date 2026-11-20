@@ -77,7 +77,7 @@ export default function FilmPlayer({ explainer: e, format, theme }: { explainer:
           <DsaMark size={tall ? 64 : 52} />
           <div className="flex min-w-0 flex-col">
             <span className={`font-mono uppercase tracking-label text-signal-text ${tall ? "text-[24px]" : "text-[20px]"}`}>Watch it work</span>
-            <span className={`truncate font-display font-bold leading-tight ${tall ? "text-[50px]" : "text-[44px]"}`}>{e.title}</span>
+            <span className={`line-clamp-2 font-display font-bold leading-tight ${tall ? "text-[46px]" : "text-[40px]"}`}>{e.title}</span>
           </div>
         </div>
         <div className={`flex flex-wrap gap-2.5 ${tall ? "" : "justify-end"}`}>
@@ -99,7 +99,7 @@ export default function FilmPlayer({ explainer: e, format, theme }: { explainer:
           <>
             <section className={`flex min-w-0 flex-col gap-5 ${tall ? "" : "basis-[58%]"}`}>
               <span className={`font-mono uppercase tracking-label text-fg-3 ${tall ? "text-[26px]" : "text-[22px]"}`}>{cur.beat.title}</span>
-              <div className={`flex items-center justify-center rounded-[22px] border-2 border-line bg-surface px-6 py-8 [&>svg]:!min-w-0 ${tall ? "min-h-[620px]" : "min-h-0 flex-1"}`}>
+              <div className={`flex flex-col items-center justify-center rounded-[22px] border-2 border-line bg-surface px-6 py-8 [&_svg]:!min-w-0 [&_svg]:!max-w-none [&>*]:w-full ${tall ? "min-h-[620px] [&_svg]:!max-h-[680px]" : "min-h-0 flex-1 [&_svg]:!max-h-[640px]"}`}>
                 <view.Component state={cur.frame.state} prev={prevState} t={t} />
               </div>
             </section>
@@ -126,7 +126,7 @@ export default function FilmPlayer({ explainer: e, format, theme }: { explainer:
                     .filter(({ k }) => {
                       // a window of the solution around the lit step
                       const first = lit.size ? Math.min(...lit) : 0;
-                      return k >= Math.max(0, first - 4) && k < Math.max(0, first - 4) + (tall ? 14 : 12);
+                      return k >= Math.max(0, first - 4) && k < Math.max(0, first - 4) + (tall ? 9 : 12);
                     })
                     .map(({ l, k }) => (
                       <div key={k} className={`whitespace-pre-wrap break-words px-6 [overflow-wrap:anywhere] ${lit.has(k) ? "bg-[var(--c-dsa-hl)] text-fg" : "text-fg-3"}`}>

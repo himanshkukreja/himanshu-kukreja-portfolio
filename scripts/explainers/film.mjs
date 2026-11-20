@@ -38,7 +38,7 @@ for (const id of ids) {
     const [w, h] = format === "tall" ? [1080, 1920] : [1920, 1080];
     const page = await browser.newPage();
     await page.setViewport({ width: w, height: h, deviceScaleFactor: 1 });
-    await page.goto(`${BASE}/dsa/explainer-film/${id}?format=${format}&theme=${theme}`, { waitUntil: "networkidle2", timeout: 600000 });
+    await page.goto(`${BASE}/dsa/explainer-film/${id}?format=${format}&theme=${theme}`, { waitUntil: "load", timeout: 600000 });
     await page.waitForFunction(() => window.__filmReady === true, { timeout: 120000 });
     await page.evaluate(() => document.fonts.ready);
     const dur = await page.evaluate(() => window.__filmDuration);
