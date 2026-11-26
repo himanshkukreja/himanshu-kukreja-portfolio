@@ -4,6 +4,7 @@
  */
 import { channelFor, cleanHost, isOwnHost, type Channel } from "@/lib/analytics/channels";
 import { isBotUA, parseUA } from "@/lib/analytics/ua";
+import { disguisedBotReason } from "@/lib/analytics/botRules";
 
 /** Columns selected from analytics_events (keep in sync with load.ts). */
 export const COLUMNS =
@@ -79,9 +80,15 @@ const DC_CITIES = /^(Ashburn|Boydton|Council Bluffs|The Dalles|Manassas|Quincy|M
  * - Bytespider's stealth twin: CN + 375×812 viewport with rotating desktop/Android UAs, one view per
  *   visitor (the "CN burst" pattern) — and any 375×812 screen whose UA is not an iPhone;
  * - DevTools device emulation UA (`iPhone OS 13_2_3`), headless default screens 800×600 / 1280×1200
- *   (the SG / US data-centre crawlers).
+ *   (the SG / US data-centre crawlers);
+ * - anonymous Chrome look-alikes (Nov 2026): time zone on another continent from the IP ("tz"),
+ *   data-centre Linux Chrome at 1920×1080 / Los Angeles ("dc-linux") — see lib/analytics/botRules.ts.
  */
-type BotFields = Pick<RawRow, "user_agent" | "screen_width" | "screen_height" | "country"> & { page_path?: string | null };
+type BotFields = Pick<RawRow, "user_agent" | "screen_width" | "screen_height" | "country"> & {
+  page_path?: string | null;
+  metadata?: Record<string, unknown> | null;
+  user_id?: string | null;
+};
 
 export function isLikelyBot(row: BotFields): boolean {
   return botReason(row) !== null;
@@ -101,7 +108,10 @@ export function botReason(row: BotFields): string | null {
   }
   if (/iPhone OS 13_2_3/.test(ua)) return "emulator";
   if ((w === 800 && h === 600) || (w === 1280 && h === 1200)) return "headless";
-  return null;
+  // Chrome look-alikes: time zone on another continent from the IP, data-centre Linux Chrome (botRules.ts)
+  const tz = row.metadata && typeof row.metadata.tz === "string" ? row.metadata.tz : null;
+  const p = parseUA(ua);
+  return disguisedBotReason({ signedIn: !!row.user_id, country: row.country, tz, browser: p.browser, os: p.os, sw: w, sh: h });
 }
 
 function kindOf(t: string): Kind {
